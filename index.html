@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rewind | Video Tape Library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">▶</div>
+        <div>
+          <strong>rewind</strong>
+          <span>tape library</span>
+        </div>
+      </div>
+      <nav aria-label="Main navigation">
+        <a class="nav-item active" href="#library"><span>▦</span> Library</a>
+        <a class="nav-item" href="#activity"><span>◷</span> Activity</a>
+      </nav>
+      <div class="sidebar-note">
+        <span class="dot"></span>
+        <div><strong id="sync-status">Local archive</strong><small>Saved in this browser</small></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PERSONAL ARCHIVE / 2026</p>
+          <h1>Video tape library</h1>
+        </div>
+        <button class="primary-button" id="add-tape-button"><span>＋</span> Add tape</button>
+      </header>
+
+      <section class="stats-grid" aria-label="Library summary">
+        <article class="stat-card accent">
+          <span class="stat-label">Total tapes</span>
+          <strong id="total-count">0</strong>
+          <small><span class="trend">↗</span> In your collection</small>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Available</span>
+          <strong id="available-count">0</strong>
+          <small>Ready to watch</small>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Checked out</span>
+          <strong id="borrowed-count">0</strong>
+          <small id="borrowed-detail">Currently on loan</small>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Total runtime</span>
+          <strong id="runtime-count">0h</strong>
+          <small>Across your archive</small>
+        </article>
+      </section>
+
+      <section class="toolbar" id="library">
+        <div class="search-wrap">
+          <span>⌕</span>
+          <input id="search-input" type="search" placeholder="Search titles, directors, genres..." aria-label="Search tapes">
+        </div>
+        <div class="filter-group" role="group" aria-label="Filter tapes">
+          <button class="filter-button active" data-filter="all">All <span id="all-filter-count">0</span></button>
+          <button class="filter-button" data-filter="available">Available</button>
+          <button class="filter-button" data-filter="borrowed">Checked out</button>
+        </div>
+        <select id="sort-select" aria-label="Sort tapes">
+          <option value="recent">Recently added</option>
+          <option value="title">Title A–Z</option>
+          <option value="year">Release year</option>
+          <option value="runtime">Runtime</option>
+        </select>
+      </section>
+
+      <section class="library-section">
+        <div class="section-heading">
+          <div>
+            <h2>Your collection</h2>
+            <p id="result-summary">0 tapes in your archive</p>
+          </div>
+          <button class="text-button" id="export-button">Export archive <span>↗</span></button>
+        </div>
+        <div id="tape-grid" class="tape-grid"></div>
+        <div id="empty-state" class="empty-state hidden">
+          <div class="empty-icon">▧</div>
+          <h3>No tapes found</h3>
+          <p>Try another search or add a new tape to your collection.</p>
+          <button class="primary-button" id="empty-add-button">Add your first tape</button>
+        </div>
+      </section>
+
+      <section class="activity-section" id="activity">
+        <div class="section-heading">
+          <div><h2>Recent activity</h2><p>The latest changes to your archive</p></div>
+        </div>
+        <div id="activity-list" class="activity-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="tape-dialog">
+    <form method="dialog" id="tape-form">
+      <div class="dialog-header">
+        <div><p class="eyebrow">ARCHIVE ENTRY</p><h2 id="dialog-title">Add a new tape</h2></div>
+        <button type="button" class="icon-button" id="close-dialog" aria-label="Close">×</button>
+      </div>
+      <div class="form-grid">
+        <label class="field wide">Title<input name="title" required maxlength="100" placeholder="e.g. The Grand Budapest Hotel"></label>
+        <label class="field">Director<input name="director" maxlength="80" placeholder="e.g. Wes Anderson"></label>
+        <label class="field">Release year<input name="year" type="number" min="1888" max="2100" placeholder="2014"></label>
+        <label class="field">Genre<input name="genre" maxlength="40" placeholder="Comedy, Drama"></label>
+        <label class="field">Runtime (minutes)<input name="runtime" type="number" min="1" max="999" placeholder="100"></label>
+        <label class="field">Format<select name="format"><option>VHS</option><option>VHS-C</option><option>Betamax</option><option>Hi8</option><option>MiniDV</option><option>DVD</option></select></label>
+        <label class="field wide">Notes<textarea name="notes" rows="3" maxlength="300" placeholder="Condition, edition, where it came from..."></textarea></label>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="secondary-button" id="cancel-dialog">Cancel</button>
+        <button type="submit" class="primary-button">Save tape</button>
+      </div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
