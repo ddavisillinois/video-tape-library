@@ -85,7 +85,11 @@
             <h2>Your collection</h2>
             <p id="result-summary">0 tapes in your archive</p>
           </div>
-          <button class="text-button" id="export-button">Export archive <span>↗</span></button>
+          <div class="archive-actions">
+            <button class="text-button" id="import-button">Import archive <span>↙</span></button>
+            <button class="text-button" id="export-button">Export archive <span>↗</span></button>
+            <input id="import-input" type="file" accept="application/json" hidden>
+          </div>
         </div>
         <div id="tape-grid" class="tape-grid"></div>
         <div id="empty-state" class="empty-state hidden">
