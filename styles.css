@@ -58,6 +58,7 @@ h2 { font-size: 20px; letter-spacing: -.6px; margin-bottom: 5px; }
 #sort-select { margin-left: auto; padding: 10px 30px 10px 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--muted); }
 .section-heading { margin-bottom: 16px; }
 .section-heading p { color: var(--muted); font-size: 12px; margin: 0; }
+.archive-actions { display: flex; gap: 16px; }
 .text-button { border: 0; color: var(--green-dark); background: transparent; font-weight: 600; font-size: 12px; }
 .tape-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .tape-card { background: var(--card); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; transition: transform .2s, box-shadow .2s; }
@@ -69,6 +70,8 @@ h2 { font-size: 20px; letter-spacing: -.6px; margin-bottom: 5px; }
 .cover h3 { position: relative; z-index: 1; max-width: 76%; font-size: 21px; line-height: 1.03; letter-spacing: -1px; margin: 0; }
 .format-badge { position: absolute; right: 14px; top: 15px; z-index: 1; color: rgba(32,35,31,.55); font: 10px "DM Mono", monospace; }
 .tape-info { padding: 15px 16px 13px; }
+.tape-id { color: var(--green-dark); font: 10px "DM Mono", monospace; letter-spacing: .6px; margin-bottom: 9px; }
+.tape-id strong { color: var(--ink); margin-left: 4px; }
 .tape-meta { color: var(--muted); font-size: 11px; margin-bottom: 13px; }
 .tape-meta span + span::before { content: "·"; margin: 0 6px; }
 .tape-footer { padding-top: 11px; border-top: 1px solid #eef0eb; display: flex; align-items: center; justify-content: space-between; }

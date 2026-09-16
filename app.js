@@ -1,13 +1,16 @@
 const STORAGE_KEY = "rewind-tapes-v1";
 const ACTIVITY_KEY = "rewind-activity-v1";
+const TAPE_ID_LENGTH = 4;
+const TAPE_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const MAX_ID_ATTEMPTS = 100;
 
 const seedTapes = [
-  { id: crypto.randomUUID(), title: "The Grand Budapest Hotel", director: "Wes Anderson", year: 2014, genre: "Comedy, Drama", runtime: 100, format: "VHS", notes: "Pink case edition.", status: "available", addedAt: Date.now() - 86400000 * 2 },
-  { id: crypto.randomUUID(), title: "Spirited Away", director: "Hayao Miyazaki", year: 2001, genre: "Animation", runtime: 125, format: "VHS", notes: "Studio Ghibli collection.", status: "available", addedAt: Date.now() - 86400000 * 4 },
-  { id: crypto.randomUUID(), title: "The Matrix", director: "The Wachowskis", year: 1999, genre: "Sci-Fi", runtime: 136, format: "VHS-C", notes: "", status: "borrowed", borrower: "Maya R.", addedAt: Date.now() - 86400000 * 7 },
-  { id: crypto.randomUUID(), title: "Moonlight", director: "Barry Jenkins", year: 2016, genre: "Drama", runtime: 111, format: "VHS", notes: "", status: "available", addedAt: Date.now() - 86400000 * 9 },
-  { id: crypto.randomUUID(), title: "Alien", director: "Ridley Scott", year: 1979, genre: "Horror, Sci-Fi", runtime: 117, format: "Betamax", notes: "Original rental store label.", status: "available", addedAt: Date.now() - 86400000 * 10 },
-  { id: crypto.randomUUID(), title: "Do the Right Thing", director: "Spike Lee", year: 1989, genre: "Drama", runtime: 120, format: "VHS", notes: "", status: "available", addedAt: Date.now() - 86400000 * 12 }
+  { id: generateTapeId(), title: "The Grand Budapest Hotel", director: "Wes Anderson", year: 2014, genre: "Comedy, Drama", runtime: 100, format: "VHS", notes: "Pink case edition.", status: "available", addedAt: Date.now() - 86400000 * 2 },
+  { id: generateTapeId(), title: "Spirited Away", director: "Hayao Miyazaki", year: 2001, genre: "Animation", runtime: 125, format: "VHS", notes: "Studio Ghibli collection.", status: "available", addedAt: Date.now() - 86400000 * 4 },
+  { id: generateTapeId(), title: "The Matrix", director: "The Wachowskis", year: 1999, genre: "Sci-Fi", runtime: 136, format: "VHS-C", notes: "", status: "borrowed", borrower: "Maya R.", addedAt: Date.now() - 86400000 * 7 },
+  { id: generateTapeId(), title: "Moonlight", director: "Barry Jenkins", year: 2016, genre: "Drama", runtime: 111, format: "VHS", notes: "", status: "available", addedAt: Date.now() - 86400000 * 9 },
+  { id: generateTapeId(), title: "Alien", director: "Ridley Scott", year: 1979, genre: "Horror, Sci-Fi", runtime: 117, format: "Betamax", notes: "Original rental store label.", status: "available", addedAt: Date.now() - 86400000 * 10 },
+  { id: generateTapeId(), title: "Do the Right Thing", director: "Spike Lee", year: 1989, genre: "Drama", runtime: 120, format: "VHS", notes: "", status: "available", addedAt: Date.now() - 86400000 * 12 }
 ];
 
 let tapes = load(STORAGE_KEY, null) || seedTapes;
@@ -31,6 +34,40 @@ function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tapes));
   localStorage.setItem(ACTIVITY_KEY, JSON.stringify(activity.slice(0, 8)));
 }
+function generateTapeId(usedIds = new Set()) {
+  for (let attempt = 0; attempt < MAX_ID_ATTEMPTS; attempt += 1) {
+    const bytes = new Uint8Array(TAPE_ID_LENGTH);
+    crypto.getRandomValues(bytes);
+    const id = [...bytes].map((byte) => TAPE_ID_ALPHABET[byte % TAPE_ID_ALPHABET.length]).join("");
+    if (!usedIds.has(id)) return id;
+  }
+  throw new Error("Unable to generate a unique Tape ID. Please try again.");
+}
+function isValidTapeId(id) {
+  return typeof id === "string" && /^[A-Z]{4}$/.test(id);
+}
+function repairTapeIds(collection, existingIds = new Set()) {
+  const usedIds = new Set(existingIds);
+  let changed = false;
+  const repaired = collection.map((tape) => {
+    if (isValidTapeId(tape.id) && !usedIds.has(tape.id)) {
+      usedIds.add(tape.id);
+      return tape;
+    }
+    const repairedTape = { ...tape, id: generateTapeId(usedIds) };
+    usedIds.add(repairedTape.id);
+    changed = true;
+    return repairedTape;
+  });
+  return { tapes: repaired, changed };
+}
+function materializeTapeIds() {
+  const result = repairTapeIds(tapes);
+  if (result.changed) {
+    tapes = result.tapes;
+    save();
+  }
+}
 function escapeHtml(value = "") {
   return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
 }
@@ -53,7 +90,7 @@ function filteredTapes() {
   const sort = $("#sort-select").value;
   const result = tapes.filter((tape) => {
     const matchesFilter = activeFilter === "all" || tape.status === activeFilter;
-    const haystack = `${tape.title} ${tape.director} ${tape.genre} ${tape.format}`.toLowerCase();
+    const haystack = `${tape.id} ${tape.title} ${tape.director} ${tape.genre} ${tape.format}`.toLowerCase();
     return matchesFilter && haystack.includes(query);
   });
   return result.sort((a, b) => sort === "title" ? a.title.localeCompare(b.title) : sort === "year" ? (b.year || 0) - (a.year || 0) : sort === "runtime" ? b.runtime - a.runtime : b.addedAt - a.addedAt);
@@ -78,6 +115,7 @@ function render() {
         <h3>${escapeHtml(tape.title)}</h3>
       </div>
       <div class="tape-info">
+        <div class="tape-id">Tape ID <strong>${escapeHtml(tape.id)}</strong></div>
         <div class="tape-meta"><span>${escapeHtml(tape.director || "Unknown director")}</span><span>${tape.year || "Year unknown"}</span><span>${formatRuntime(tape.runtime || 0)}</span></div>
         <div class="tape-footer">
           <span class="status ${tape.status === "borrowed" ? "borrowed" : ""}">${tape.status === "borrowed" ? `Out · ${escapeHtml(tape.borrower || "On loan")}` : "● Available"}</span>
@@ -116,7 +154,14 @@ form.addEventListener("submit", (event) => {
     addActivity(`Updated ${tape.title}`, "✎");
     showToast("Tape updated");
   } else {
-    const tape = { ...data, id: crypto.randomUUID(), status: "available", addedAt: Date.now() };
+    let id;
+    try {
+      id = generateTapeId(new Set(tapes.map((item) => item.id)));
+    } catch (error) {
+      showToast(error.message);
+      return;
+    }
+    const tape = { ...data, id, status: "available", addedAt: Date.now() };
     tapes.unshift(tape);
     addActivity(`Added ${tape.title} to the archive`, "＋");
     showToast("Tape added to your archive");
@@ -158,6 +203,24 @@ $("#export-button").addEventListener("click", () => {
   const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "rewind-library.json"; link.click(); URL.revokeObjectURL(link.href);
   showToast("Archive exported");
 });
+$("#import-button").addEventListener("click", () => $("#import-input").click());
+$("#import-input").addEventListener("change", async (event) => {
+  const [file] = event.target.files;
+  if (!file) return;
+  try {
+    const imported = JSON.parse(await file.text());
+    if (!Array.isArray(imported)) throw new Error("The archive must contain a list of tapes.");
+    const result = repairTapeIds(imported, new Set(tapes.map((tape) => tape.id)));
+    tapes = [...result.tapes, ...tapes];
+    addActivity(`Imported ${result.tapes.length} tape${result.tapes.length === 1 ? "" : "s"} into the archive`, "↙");
+    save(); render(); showToast("Archive imported");
+  } catch (error) {
+    showToast(error.message || "Unable to import archive");
+  } finally {
+    event.target.value = "";
+  }
+});
 let toastTimer;
 function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("show"), 2400); }
+materializeTapeIds();
 render();
