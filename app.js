@@ -4,28 +4,24 @@ const TAPE_ID_LENGTH = 4;
 const TAPE_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const MAX_ID_ATTEMPTS = 100;
 
+function stripDirectorField(tape = {}) {
+  const { director: _director, ...rest } = tape;
+  return rest;
+}
+
+function normalizeTapeCollection(collection) {
+  if (!Array.isArray(collection)) return [];
+  return collection.map((tape) => stripDirectorField(tape));
+}
+
 const seedTapes = [
-  { id: generateTapeId(), title: "The Grand Budapest Hotel", director: "Wes Anderson", year: 2014, genre: "Comedy, Drama", runtime: 100, format: "VHS", notes: "Pink case edition.", status: "available", addedAt: Date.now() - 86400000 * 2 },
-  { id: generateTapeId(), title: "Spirited Away", director: "Hayao Miyazaki", year: 2001, genre: "Animation", runtime: 125, format: "VHS", notes: "Studio Ghibli collection.", status: "available", addedAt: Date.now() - 86400000 * 4 },
-  { id: generateTapeId(), title: "The Matrix", director: "The Wachowskis", year: 1999, genre: "Sci-Fi", runtime: 136, format: "VHS-C", notes: "", status: "borrowed", borrower: "Maya R.", addedAt: Date.now() - 86400000 * 7 },
-  { id: generateTapeId(), title: "Moonlight", director: "Barry Jenkins", year: 2016, genre: "Drama", runtime: 111, format: "VHS", notes: "", status: "available", addedAt: Date.now() - 86400000 * 9 },
-  { id: generateTapeId(), title: "Alien", director: "Ridley Scott", year: 1979, genre: "Horror, Sci-Fi", runtime: 117, format: "Betamax", notes: "Original rental store label.", status: "available", addedAt: Date.now() - 86400000 * 10 },
-  { id: generateTapeId(), title: "Do the Right Thing", director: "Spike Lee", year: 1989, genre: "Drama", runtime: 120, format: "VHS", notes: "", status: "available", addedAt: Date.now() - 86400000 * 12 }
+  { id: generateTapeId(), title: "The Grand Budapest Hotel", year: 2014, genre: "Comedy, Drama", runtime: 100, format: "VHS", notes: "Pink case edition.", status: "available", addedAt: Date.now() - 86400000 * 2 },
+  { id: generateTapeId(), title: "Spirited Away", year: 2001, genre: "Animation", runtime: 125, format: "VHS", notes: "Studio Ghibli collection.", status: "available", addedAt: Date.now() - 86400000 * 4 },
+  { id: generateTapeId(), title: "The Matrix", year: 1999, genre: "Sci-Fi", runtime: 136, format: "VHS-C", notes: "", status: "borrowed", borrower: "Maya R.", addedAt: Date.now() - 86400000 * 7 },
+  { id: generateTapeId(), title: "Moonlight", year: 2016, genre: "Drama", runtime: 111, format: "VHS", notes: "", status: "available", addedAt: Date.now() - 86400000 * 9 },
+  { id: generateTapeId(), title: "Alien", year: 1979, genre: "Horror, Sci-Fi", runtime: 117, format: "Betamax", notes: "Original rental store label.", status: "available", addedAt: Date.now() - 86400000 * 10 },
+  { id: generateTapeId(), title: "Do the Right Thing", year: 1989, genre: "Drama", runtime: 120, format: "VHS", notes: "", status: "available", addedAt: Date.now() - 86400000 * 12 }
 ];
-
-let tapes = load(STORAGE_KEY, null) || seedTapes;
-let activity = load(ACTIVITY_KEY, [
-  { text: "Library initialized with starter tapes", time: Date.now() - 86400000 * 2, icon: "✦" },
-  { text: "The Matrix checked out to Maya R.", time: Date.now() - 86400000, icon: "↗" }
-]);
-let activeFilter = "all";
-let editingId = null;
-
-const $ = (selector) => document.querySelector(selector);
-const tapeGrid = $("#tape-grid");
-const emptyState = $("#empty-state");
-const dialog = $("#tape-dialog");
-const form = $("#tape-form");
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
@@ -49,7 +45,7 @@ function isValidTapeId(id) {
 function repairTapeIds(collection, existingIds = new Set()) {
   const usedIds = new Set(existingIds);
   let changed = false;
-  const repaired = collection.map((tape) => {
+  const repaired = normalizeTapeCollection(collection).map((tape) => {
     if (isValidTapeId(tape.id) && !usedIds.has(tape.id)) {
       usedIds.add(tape.id);
       return tape;
@@ -62,8 +58,9 @@ function repairTapeIds(collection, existingIds = new Set()) {
   return { tapes: repaired, changed };
 }
 function materializeTapeIds() {
-  const result = repairTapeIds(tapes);
-  if (result.changed) {
+  const stripped = normalizeTapeCollection(tapes);
+  const result = repairTapeIds(stripped);
+  if (result.changed || tapes.some((tape) => Object.prototype.hasOwnProperty.call(tape, "director"))) {
     tapes = result.tapes;
     save();
   }
@@ -85,142 +82,166 @@ function addActivity(text, icon = "✦") {
 function coverClass(tape) {
   return ["", "orange", "blue", "purple", "rose"][Math.abs([...tape.title].reduce((sum, char) => sum + char.charCodeAt(0), 0)) % 5];
 }
-function filteredTapes() {
-  const query = $("#search-input").value.trim().toLowerCase();
-  const sort = $("#sort-select").value;
-  const result = tapes.filter((tape) => {
-    const matchesFilter = activeFilter === "all" || tape.status === activeFilter;
-    const haystack = `${tape.id} ${tape.title} ${tape.director} ${tape.genre} ${tape.format}`.toLowerCase();
-    return matchesFilter && haystack.includes(query);
-  });
-  return result.sort((a, b) => sort === "title" ? a.title.localeCompare(b.title) : sort === "year" ? (b.year || 0) - (a.year || 0) : sort === "runtime" ? b.runtime - a.runtime : b.addedAt - a.addedAt);
-}
-function render() {
-  const available = tapes.filter((t) => t.status === "available").length;
-  const borrowed = tapes.length - available;
-  const runtime = tapes.reduce((sum, t) => sum + Number(t.runtime || 0), 0);
-  $("#total-count").textContent = tapes.length;
-  $("#available-count").textContent = available;
-  $("#borrowed-count").textContent = borrowed;
-  $("#borrowed-detail").textContent = borrowed ? `${borrowed} currently on loan` : "Nothing on loan";
-  $("#runtime-count").textContent = `${Math.floor(runtime / 60)}h`;
-  $("#all-filter-count").textContent = tapes.length;
-  const visible = filteredTapes();
-  $("#result-summary").textContent = `${visible.length} tape${visible.length === 1 ? "" : "s"} in your archive`;
-  tapeGrid.innerHTML = visible.map((tape) => `
-    <article class="tape-card">
-      <div class="cover ${coverClass(tape)}">
-        <span class="cover-label">${escapeHtml(tape.genre || "Archive")}</span>
-        <span class="format-badge">${escapeHtml(tape.format)}</span>
-        <h3>${escapeHtml(tape.title)}</h3>
-      </div>
-      <div class="tape-info">
-        <div class="tape-id">Tape ID <strong>${escapeHtml(tape.id)}</strong></div>
-        <div class="tape-meta"><span>${escapeHtml(tape.director || "Unknown director")}</span><span>${tape.year || "Year unknown"}</span><span>${formatRuntime(tape.runtime || 0)}</span></div>
-        <div class="tape-footer">
-          <span class="status ${tape.status === "borrowed" ? "borrowed" : ""}">${tape.status === "borrowed" ? `Out · ${escapeHtml(tape.borrower || "On loan")}` : "● Available"}</span>
-          <div class="card-actions">
-            <button class="small-button" data-action="edit" data-id="${tape.id}">Edit</button>
-            <button class="small-button" data-action="toggle" data-id="${tape.id}">${tape.status === "borrowed" ? "Return" : "Lend"}</button>
-            <button class="small-button" data-action="delete" data-id="${tape.id}" aria-label="Delete ${escapeHtml(tape.title)}">×</button>
+
+const $ = typeof document !== "undefined" ? (selector) => document.querySelector(selector) : () => null;
+let tapes = [];
+let activity = [];
+let activeFilter = "all";
+let editingId = null;
+
+if (typeof document !== "undefined") {
+  tapes = normalizeTapeCollection(load(STORAGE_KEY, null) || seedTapes);
+  activity = load(ACTIVITY_KEY, [
+    { text: "Library initialized with starter tapes", time: Date.now() - 86400000 * 2, icon: "✦" },
+    { text: "The Matrix checked out to Maya R.", time: Date.now() - 86400000, icon: "↗" }
+  ]);
+
+  const tapeGrid = $("#tape-grid");
+  const emptyState = $("#empty-state");
+  const dialog = $("#tape-dialog");
+  const form = $("#tape-form");
+
+  function filteredTapes() {
+    const query = $("#search-input").value.trim().toLowerCase();
+    const sort = $("#sort-select").value;
+    const result = tapes.filter((tape) => {
+      const matchesFilter = activeFilter === "all" || tape.status === activeFilter;
+      const haystack = `${tape.id} ${tape.title} ${tape.genre} ${tape.format}`.toLowerCase();
+      return matchesFilter && haystack.includes(query);
+    });
+    return result.sort((a, b) => sort === "title" ? a.title.localeCompare(b.title) : sort === "year" ? (b.year || 0) - (a.year || 0) : sort === "runtime" ? b.runtime - a.runtime : b.addedAt - a.addedAt);
+  }
+  function render() {
+    const available = tapes.filter((t) => t.status === "available").length;
+    const borrowed = tapes.length - available;
+    const runtime = tapes.reduce((sum, t) => sum + Number(t.runtime || 0), 0);
+    $("#total-count").textContent = tapes.length;
+    $("#available-count").textContent = available;
+    $("#borrowed-count").textContent = borrowed;
+    $("#borrowed-detail").textContent = borrowed ? `${borrowed} currently on loan` : "Nothing on loan";
+    $("#runtime-count").textContent = `${Math.floor(runtime / 60)}h`;
+    $("#all-filter-count").textContent = tapes.length;
+    const visible = filteredTapes();
+    $("#result-summary").textContent = `${visible.length} tape${visible.length === 1 ? "" : "s"} in your archive`;
+    tapeGrid.innerHTML = visible.map((tape) => `
+      <article class="tape-card">
+        <div class="cover ${coverClass(tape)}">
+          <span class="cover-label">${escapeHtml(tape.genre || "Archive")}</span>
+          <span class="format-badge">${escapeHtml(tape.format)}</span>
+          <h3>${escapeHtml(tape.title)}</h3>
+        </div>
+        <div class="tape-info">
+          <div class="tape-id">Tape ID <strong>${escapeHtml(tape.id)}</strong></div>
+          <div class="tape-meta"><span>${tape.year || "Year unknown"}</span><span>${formatRuntime(tape.runtime || 0)}</span></div>
+          <div class="tape-footer">
+            <span class="status ${tape.status === "borrowed" ? "borrowed" : ""}">${tape.status === "borrowed" ? `Out · ${escapeHtml(tape.borrower || "On loan")}` : "● Available"}</span>
+            <div class="card-actions">
+              <button class="small-button" data-action="edit" data-id="${tape.id}">Edit</button>
+              <button class="small-button" data-action="toggle" data-id="${tape.id}">${tape.status === "borrowed" ? "Return" : "Lend"}</button>
+              <button class="small-button" data-action="delete" data-id="${tape.id}" aria-label="Delete ${escapeHtml(tape.title)}">×</button>
+            </div>
           </div>
         </div>
-      </div>
-    </article>`).join("");
-  emptyState.classList.toggle("hidden", visible.length > 0);
-  $("#activity-list").innerHTML = activity.slice(0, 5).map((item) => `<div class="activity-item"><span class="activity-icon">${item.icon}</span><span>${escapeHtml(item.text)}</span><time>${relativeTime(item.time)}</time></div>`).join("");
-}
-function openDialog(tape = null) {
-  editingId = tape?.id || null;
-  $("#dialog-title").textContent = tape ? "Edit tape details" : "Add a new tape";
-  form.reset();
-  if (tape) Object.entries(tape).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value; });
-  dialog.showModal();
-}
-function closeDialog() { dialog.close(); editingId = null; }
+      </article>`).join("");
+    emptyState.classList.toggle("hidden", visible.length > 0);
+    $("#activity-list").innerHTML = activity.slice(0, 5).map((item) => `<div class="activity-item"><span class="activity-icon">${item.icon}</span><span>${escapeHtml(item.text)}</span><time>${relativeTime(item.time)}</time></div>`).join("");
+  }
+  function openDialog(tape = null) {
+    editingId = tape?.id || null;
+    $("#dialog-title").textContent = tape ? "Edit tape details" : "Add a new tape";
+    form.reset();
+    if (tape) Object.entries(tape).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value; });
+    dialog.showModal();
+  }
+  function closeDialog() { dialog.close(); editingId = null; }
 
-$("#add-tape-button").addEventListener("click", () => openDialog());
-$("#empty-add-button").addEventListener("click", () => openDialog());
-$("#close-dialog").addEventListener("click", closeDialog);
-$("#cancel-dialog").addEventListener("click", closeDialog);
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const data = Object.fromEntries(new FormData(form).entries());
-  data.year = data.year ? Number(data.year) : null;
-  data.runtime = Number(data.runtime) || 0;
-  if (editingId) {
-    const tape = tapes.find((item) => item.id === editingId);
-    Object.assign(tape, data);
-    addActivity(`Updated ${tape.title}`, "✎");
-    showToast("Tape updated");
-  } else {
-    let id;
-    try {
-      id = generateTapeId(new Set(tapes.map((item) => item.id)));
-    } catch (error) {
-      showToast(error.message);
-      return;
-    }
-    const tape = { ...data, id, status: "available", addedAt: Date.now() };
-    tapes.unshift(tape);
-    addActivity(`Added ${tape.title} to the archive`, "＋");
-    showToast("Tape added to your archive");
-  }
-  save(); closeDialog(); render();
-});
-tapeGrid.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-action]");
-  if (!button) return;
-  const tape = tapes.find((item) => item.id === button.dataset.id);
-  if (!tape) return;
-  if (button.dataset.action === "edit") openDialog(tape);
-  if (button.dataset.action === "delete" && confirm(`Remove "${tape.title}" from your archive?`)) {
-    tapes = tapes.filter((item) => item.id !== tape.id);
-    addActivity(`Removed ${tape.title} from the archive`, "×"); save(); render(); showToast("Tape removed");
-  }
-  if (button.dataset.action === "toggle") {
-    if (tape.status === "borrowed") {
-      tape.status = "available"; const title = tape.title; delete tape.borrower;
-      addActivity(`${title} was returned to the archive`, "↙"); showToast("Tape marked available");
+  $("#add-tape-button").addEventListener("click", () => openDialog());
+  $("#empty-add-button").addEventListener("click", () => openDialog());
+  $("#close-dialog").addEventListener("click", closeDialog);
+  $("#cancel-dialog").addEventListener("click", closeDialog);
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.year = data.year ? Number(data.year) : null;
+    data.runtime = Number(data.runtime) || 0;
+    if (editingId) {
+      const tape = tapes.find((item) => item.id === editingId);
+      Object.assign(tape, data);
+      addActivity(`Updated ${tape.title}`, "✎");
+      showToast("Tape updated");
     } else {
-      const borrower = prompt(`Who is borrowing "${tape.title}"?`, "Guest");
-      if (!borrower) return;
-      tape.status = "borrowed"; tape.borrower = borrower;
-      addActivity(`${tape.title} checked out to ${borrower}`, "↗"); showToast("Tape checked out");
+      let id;
+      try {
+        id = generateTapeId(new Set(tapes.map((item) => item.id)));
+      } catch (error) {
+        showToast(error.message);
+        return;
+      }
+      const tape = { ...data, id, status: "available", addedAt: Date.now() };
+      tapes.unshift(tape);
+      addActivity(`Added ${tape.title} to the archive`, "＋");
+      showToast("Tape added to your archive");
     }
-    save(); render();
-  }
-});
-document.querySelectorAll(".filter-button").forEach((button) => button.addEventListener("click", () => {
-  activeFilter = button.dataset.filter;
-  document.querySelectorAll(".filter-button").forEach((item) => item.classList.toggle("active", item === button));
+    save(); closeDialog(); render();
+  });
+  tapeGrid.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-action]");
+    if (!button) return;
+    const tape = tapes.find((item) => item.id === button.dataset.id);
+    if (!tape) return;
+    if (button.dataset.action === "edit") openDialog(tape);
+    if (button.dataset.action === "delete" && confirm(`Remove "${tape.title}" from your archive?`)) {
+      tapes = tapes.filter((item) => item.id !== tape.id);
+      addActivity(`Removed ${tape.title} from the archive`, "×"); save(); render(); showToast("Tape removed");
+    }
+    if (button.dataset.action === "toggle") {
+      if (tape.status === "borrowed") {
+        tape.status = "available"; const title = tape.title; delete tape.borrower;
+        addActivity(`${title} was returned to the archive`, "↙"); showToast("Tape marked available");
+      } else {
+        const borrower = prompt(`Who is borrowing "${tape.title}"?`, "Guest");
+        if (!borrower) return;
+        tape.status = "borrowed"; tape.borrower = borrower;
+        addActivity(`${tape.title} checked out to ${borrower}`, "↗"); showToast("Tape checked out");
+      }
+      save(); render();
+    }
+  });
+  document.querySelectorAll(".filter-button").forEach((button) => button.addEventListener("click", () => {
+    activeFilter = button.dataset.filter;
+    document.querySelectorAll(".filter-button").forEach((item) => item.classList.toggle("active", item === button));
+    render();
+  }));
+  $("#search-input").addEventListener("input", render);
+  $("#sort-select").addEventListener("change", render);
+  $("#export-button").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(tapes, null, 2)], { type: "application/json" });
+    const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "rewind-library.json"; link.click(); URL.revokeObjectURL(link.href);
+    showToast("Archive exported");
+  });
+  $("#import-button").addEventListener("click", () => $("#import-input").click());
+  $("#import-input").addEventListener("change", async (event) => {
+    const [file] = event.target.files;
+    if (!file) return;
+    try {
+      const imported = JSON.parse(await file.text());
+      if (!Array.isArray(imported)) throw new Error("The archive must contain a list of tapes.");
+      const result = repairTapeIds(imported, new Set(tapes.map((tape) => tape.id)));
+      tapes = [...result.tapes, ...tapes];
+      addActivity(`Imported ${result.tapes.length} tape${result.tapes.length === 1 ? "" : "s"} into the archive`, "↙");
+      save(); render(); showToast("Archive imported");
+    } catch (error) {
+      showToast(error.message || "Unable to import archive");
+    } finally {
+      event.target.value = "";
+    }
+  });
+  let toastTimer;
+  function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("show"), 2400); }
+  materializeTapeIds();
   render();
-}));
-$("#search-input").addEventListener("input", render);
-$("#sort-select").addEventListener("change", render);
-$("#export-button").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(tapes, null, 2)], { type: "application/json" });
-  const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "rewind-library.json"; link.click(); URL.revokeObjectURL(link.href);
-  showToast("Archive exported");
-});
-$("#import-button").addEventListener("click", () => $("#import-input").click());
-$("#import-input").addEventListener("change", async (event) => {
-  const [file] = event.target.files;
-  if (!file) return;
-  try {
-    const imported = JSON.parse(await file.text());
-    if (!Array.isArray(imported)) throw new Error("The archive must contain a list of tapes.");
-    const result = repairTapeIds(imported, new Set(tapes.map((tape) => tape.id)));
-    tapes = [...result.tapes, ...tapes];
-    addActivity(`Imported ${result.tapes.length} tape${result.tapes.length === 1 ? "" : "s"} into the archive`, "↙");
-    save(); render(); showToast("Archive imported");
-  } catch (error) {
-    showToast(error.message || "Unable to import archive");
-  } finally {
-    event.target.value = "";
-  }
-});
-let toastTimer;
-function showToast(message) { const toast = $("#toast"); toast.textContent = message; toast.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("show"), 2400); }
-materializeTapeIds();
-render();
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { seedTapes, stripDirectorField, normalizeTapeCollection, repairTapeIds };
+}
