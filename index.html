@@ -64,7 +64,7 @@
       <section class="toolbar" id="library">
         <div class="search-wrap">
           <span>⌕</span>
-          <input id="search-input" type="search" placeholder="Search titles, directors, genres..." aria-label="Search tapes">
+          <input id="search-input" type="search" placeholder="Search titles, genres, formats..." aria-label="Search tapes">
         </div>
         <div class="filter-group" role="group" aria-label="Filter tapes">
           <button class="filter-button active" data-filter="all">All <span id="all-filter-count">0</span></button>
@@ -117,7 +117,6 @@
       </div>
       <div class="form-grid">
         <label class="field wide">Title<input name="title" required maxlength="100" placeholder="e.g. The Grand Budapest Hotel"></label>
-        <label class="field">Director<input name="director" maxlength="80" placeholder="e.g. Wes Anderson"></label>
         <label class="field">Release year<input name="year" type="number" min="1888" max="2100" placeholder="2014"></label>
         <label class="field">Genre<input name="genre" maxlength="40" placeholder="Comedy, Drama"></label>
         <label class="field">Runtime (minutes)<input name="runtime" type="number" min="1" max="999" placeholder="100"></label>
